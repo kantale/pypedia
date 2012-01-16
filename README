@@ -1,0 +1,21 @@
+PyPedia : The free python programming environment that anyone can edit.
+
+http://www.pypedia.com
+---------------------------------------------------------
+
+This is the python library.
+
+Example:
+
+--------------------------------------------------
+
+How to run the code in the article:
+http://www.pypedia.com/index.php/Hello_world
+
+>>> import pypedia
+>>> from pypedia import Hello_world
+>>> 
+>>> Hello_world()
+Hello World!
+>>> 
+
