@@ -220,6 +220,14 @@ def importFunctionsFromCode(code, thisFunctionName, level):
 	
 	return ret
 
+#Checks the title of an article if it belongs to the User category
+def is_user_article(wikiTitle):
+    s = wikiTitle.split("_")
+
+    if len(s) < 3: return False
+
+    return s[-2] == "user"
+
 #Imports the code and the documentation from a wiki article. TODO: It sucks..
 def importCodeFromArticle(wikiTitle, wikiArticle, level, redirectedFrom):
 	theCode = ""
@@ -320,7 +328,7 @@ def import_PYP_article(wikiTitle, level, redirectedFrom = None):
 	print_debug("Importing: " + wikiTitle + " level:" + str(level))
 
 	#Check if this is a User_ article
-	if wikiTitle[0:4] == "User":
+        if is_user_article(wikiTitle):
 		print_warning("%s is a User article that may contain harmfull code." % wikiTitle)
 
 	#Is cache enabled?
