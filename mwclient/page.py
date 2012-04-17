@@ -91,13 +91,13 @@ class Page(object):
 		except StopIteration:
 			return u''
 			
-	def edit(self, section = None, readonly = False):
+	def edit(self, section = None, readonly = False, start_timestamp = None):
 		if not self.can('read'):
 			raise errors.InsufficientPermission(self)
 		if not self.exists:
 			return u''
-			
-		revs = self.revisions(prop = 'content|timestamp', limit = 1)
+		#Edit for pypedia
+		revs = self.revisions(prop = 'content|timestamp', limit = 1, start = start_timestamp)
 		try:
 			rev = revs.next()
 			self.text = rev['*']
