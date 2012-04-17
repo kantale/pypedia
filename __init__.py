@@ -75,6 +75,10 @@ warnings = True
 #The object to manage the connection
 site = None
 
+#The before timestamp. If set then the library will download the first revision of the method BEFORE this date.
+#The format should be string: "YYYYMMDDHHMMSS"
+before_timestamp = None
+
 #Connect to mediawiki..
 def pypedia_connect():
 	global site
@@ -348,7 +352,7 @@ def import_PYP_article(wikiTitle, level, redirectedFrom = None):
 
 	#Get the article from pypedia	
 	page = site.Pages[wikiTitle]
-	text = page.edit()
+	text = page.edit(start_timestamp = before_timestamp)
 	if not len(text):
 		print_debug(wikiTitle + " does not exist in www.pypedia.com")
 		return False
