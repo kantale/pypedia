@@ -83,9 +83,10 @@ before_timestamp = None
 def pypedia_connect():
 	global site
 
+	print_debug("Connecting to www.pypedia.com..")
 	site = mwclient.Site(siteDomain, path = sitePath)
 	site.login(username, password) # Optional
-
+	print_debug("Done connecting to www.pypedia.com")
 
 reservedWords = ["abs", "all", "and", "any" "as", "assert", "basestring", "bin", "bool", "break", "callable", "chr", "class", "classmethod", "cmp", "compile",
 			"complex", "continue", "def", "del", "delattr", "dict", "dir", "divmod", 
@@ -183,6 +184,37 @@ def removeConstants(code):
 	
 	return ret
 
+def update(article_name, summary=''):
+	filename = os.path.join(tmpDirectory, functionPreffix + article_name + ".py")
+	#does this file exist?
+	if not os.path.exists(filename):
+		raise Exception("Filename: %s does not exist" % (filename))
+
+	content = open(filename).read()
+
+	#Remove the import statements
+	content = re.sub(r"from pyp_.*\n", "", content)
+
+	#Remove the docstring. Doscstring is constructed automatically
+	c_from = content.find('Link: http://www.pypedia.com/index.php/%s' % (article_name))
+	c_to = content.find('"""', c_from)
+	content = content[0:c_from-4] + content[c_to+3:]
+
+	#Form it as a wiki section
+	content = """
+==Code==
+
+<source lang="py">
+%s
+</source>
+""" % (content)
+	
+	if not site:
+		pypedia_connect()
+
+	page = site.Pages[article_name]
+	page.save(content, summary=summary, section=5)
+
 #Try to import the functions that are included in thisFunctionName
 def importFunctionsFromCode(code, thisFunctionName, level):
 
@@ -235,7 +267,8 @@ def is_user_article(wikiTitle):
 #Imports the code and the documentation from a wiki article. TODO: It sucks..
 def importCodeFromArticle(wikiTitle, wikiArticle, level, redirectedFrom):
 	theCode = ""
-	theDocumentation = "Link: http://www.pypedia.com/index.php/" + wikiTitle + "\n"
+	theDocumentation = ""
+	theDocumentation += "Link: http://www.pypedia.com/index.php/" + wikiTitle + "\n"
 	theDocumentation += "Retrieve date: " + Print_now() + "\n"
 	listWA = wikiArticle.split("\n")
 	inCode = False
@@ -346,9 +379,7 @@ def import_PYP_article(wikiTitle, level, redirectedFrom = None):
 
 	#If we are not connected, connect	
 	if not site:
-		print_debug("Connecting to www.pypedia.com..")
 		pypedia_connect()
-		print_debug("Done connecting to www.pypedia.com")
 
 	#Get the article from pypedia	
 	page = site.Pages[wikiTitle]
