@@ -24,6 +24,8 @@ import time
 import re
 import os
 
+from datetime import datetime
+
 #Check Version. Allow ONLY python 2.6 and 2.7
 if sys.version[0:3] not in ["2.6", "2.7"]:
 	raise Exception("Invalid Version. PyPedia can be imported only in Python v. 2.6 or v. 2.7")
@@ -72,6 +74,10 @@ debug = False
 #Print warnings
 warnings = True
 
+#By default pypedia checks for modification dates before downloading articles from pypedia.com
+#If a file has been modified locally an exception is generated. This can be overriden by setting True the force_imports variable
+force_imports = False
+
 #The object to manage the connection
 site = None
 
@@ -110,10 +116,6 @@ def print_warning(to_print):
 	if warnings:
 		print "PYPEDIA WARNING:", to_print
 
-def Print_now():
-	"""Returns the current time"""
-	return time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())
-
 def import_file(filename, level):
 	caller_locals = inspect.currentframe(level).f_locals
 	caller_globals = inspect.currentframe(level).f_globals
@@ -126,6 +128,24 @@ def importString(aName, astr, level, redirectedFrom = None):
 	tmpName = "%s%s%s.py" % (tmpDirectory, functionPreffix, aName)
 
 	if (not enable_cache) or (not os.path.isfile(tmpName)):
+	
+		#Does this file exists?
+		if os.path.exists(tmpName):
+			#Read the file and get the local retrieve date
+			contents = open(tmpName).read()
+			local_retrieve_date = re.search(r"Local retrieve date: (.*)", contents).group(1)
+			local_retrieve_time = time.strptime(local_retrieve_date, "%Y-%m-%dT%H:%M:%S%Z") #TODO: Make this universal
+
+			#Get the date when the file was list time edited:
+			last_edited = time.localtime(os.path.getmtime(tmpName))
+
+			difference = datetime.fromtimestamp(time.mktime(last_edited)) - datetime.fromtimestamp(time.mktime(local_retrieve_time))
+			
+			#Check if the has been edited AFTER it was downloaded from pypedia.com (We allow a minute interval)
+			if difference.seconds > 60:
+				if not force_imports:
+					raise Exception("%s cannot be imported because the file %s has been edited locally. Set pypedia.force_imports=True to override.\nLast edit time:%s\nRetrieve time:%s\n" % (aName, tmpName, str(last_edited), str(local_retrieve_time)))
+	
 		f = open(tmpName, "w")
 		f.write(astr)
 		f.close()
@@ -185,11 +205,15 @@ def removeConstants(code):
 	return ret
 
 def update(article_name, summary=''):
+	"""
+	Takes a local version of an article and uploads it on the server (default www.pypedia.com)
+	"""
 	filename = os.path.join(tmpDirectory, functionPreffix + article_name + ".py")
 	#does this file exist?
 	if not os.path.exists(filename):
 		raise Exception("Filename: %s does not exist" % (filename))
 
+	#Read the file
 	content = open(filename).read()
 
 	#Remove the import statements
@@ -215,8 +239,10 @@ def update(article_name, summary=''):
 	page = site.Pages[article_name]
 	page.save(content, summary=summary, section=5)
 
-#Try to import the functions that are included in thisFunctionName
 def importFunctionsFromCode(code, thisFunctionName, level):
+	"""
+	Try to import the functions that are included in thisFunctionName
+	"""
 
 	#Remove Comments
 	thisCode = removeComments(code)
@@ -265,11 +291,13 @@ def is_user_article(wikiTitle):
     return s[-2] == "user"
 
 #Imports the code and the documentation from a wiki article. TODO: It sucks..
-def importCodeFromArticle(wikiTitle, wikiArticle, level, redirectedFrom):
+def importCodeFromArticle(wikiTitle, wikiArticle, level, redirectedFrom, revision, touched):
 	theCode = ""
 	theDocumentation = ""
-	theDocumentation += "Link: http://www.pypedia.com/index.php/" + wikiTitle + "\n"
-	theDocumentation += "Retrieve date: " + Print_now() + "\n"
+	theDocumentation += "Link: http://www.pypedia.com/index.php/%s\n" % (wikiTitle)
+	theDocumentation += "Local retrieve date: %s\n" % (time.strftime("%Y-%m-%dT%H:%M:%S%Z", time.localtime()))
+	theDocumentation += "PyPedia touched date: %s\n" % (touched)
+	theDocumentation += "PyPedia revision: %s\n\n" % (revision)
 	listWA = wikiArticle.split("\n")
 	inCode = False
 	inSection = False
@@ -384,6 +412,11 @@ def import_PYP_article(wikiTitle, level, redirectedFrom = None):
 	#Get the article from pypedia	
 	page = site.Pages[wikiTitle]
 	text = page.edit(start_timestamp = before_timestamp)
+
+	#Get revision data
+	revision = page.revision
+	touched = time.strftime("%Y-%m-%dT%H:%M:%SZ", page.touched) if type(page.touched).__name__ == "struct_time" else None
+
 	if not len(text):
 		print_debug(wikiTitle + " does not exist in www.pypedia.com")
 		return False
@@ -400,7 +433,7 @@ def import_PYP_article(wikiTitle, level, redirectedFrom = None):
 
 	else:
 		#Import the article
-		importCodeFromArticle(wikiTitle, text, level, redirectedFrom)
+		importCodeFromArticle(wikiTitle, text, level, redirectedFrom, revision, touched)
 
 	return True
 
