@@ -20,6 +20,7 @@
 import sys, imp, __builtin__
 import mwclient
 import inspect
+import glob
 import time
 import re
 import os
@@ -122,6 +123,30 @@ def import_file(filename, level):
 
 	execfile(filename, caller_locals, caller_globals)
 
+def imported_file_time_diff(filename):
+	"""
+	Gets the differences in seconds of time between the last time a file was modified and the time it was retrieved from pypedia
+	"""
+	
+	file_content = open(filename).read()
+
+	#Get the date it was retrieved
+	local_retrieve_date = re.search(r"Local retrieve date: (.*)", file_content).group(1)
+	local_retrieve_time = time.strptime(local_retrieve_date, "%Y-%m-%dT%H:%M:%S%Z") #TODO: Make this universal
+
+	#Get the date when the file was list time edited:
+	last_edited = time.localtime(os.path.getmtime(filename))
+
+	difference = datetime.fromtimestamp(time.mktime(last_edited)) - datetime.fromtimestamp(time.mktime(local_retrieve_time))
+	return difference.seconds
+
+def change_local_retrieve_date(filename):
+	"""
+	Changes the local retrieve date of a file to now
+	"""
+	file_content = open(filename).read()
+	file_content = re.sub(r"Local retrieve date: .*", "Local retrieve date: %s" % (time.strftime("%Y-%m-%dT%H:%M:%S%Z", time.localtime())), file_content)
+	open(filename, "w").write(file_content)
 
 def importString(aName, astr, level, redirectedFrom = None):
 
@@ -131,23 +156,15 @@ def importString(aName, astr, level, redirectedFrom = None):
 	
 		#Does this file exists?
 		if os.path.exists(tmpName):
-			#Read the file and get the local retrieve date
-			contents = open(tmpName).read()
-			local_retrieve_date = re.search(r"Local retrieve date: (.*)", contents).group(1)
-			local_retrieve_time = time.strptime(local_retrieve_date, "%Y-%m-%dT%H:%M:%S%Z") #TODO: Make this universal
-
-			#Get the date when the file was list time edited:
-			last_edited = time.localtime(os.path.getmtime(tmpName))
-
-			difference = datetime.fromtimestamp(time.mktime(last_edited)) - datetime.fromtimestamp(time.mktime(local_retrieve_time))
-			
-			#Check if the has been edited AFTER it was downloaded from pypedia.com (We allow a minute interval)
-			if difference.seconds > 60:
+						
+			#Check if the file has been edited AFTER it was downloaded from pypedia.com (We allow one second interval)
+			difference = imported_file_time_diff(tmpName)
+			if difference > 1:
 				if not force_imports:
 					raise Exception("%s cannot be imported because the file %s has been edited locally. Set pypedia.force_imports=True to override.\nLast edit time:%s\nRetrieve time:%s\n" % (aName, tmpName, str(last_edited), str(local_retrieve_time)))
 	
 		f = open(tmpName, "w")
-		f.write(astr)
+		f.write(astr.replace("@PYPEDIALOCALRETRIEVETIME@", time.strftime("%Y-%m-%dT%H:%M:%S%Z", time.localtime())))
 		f.close()
 
 	#We import ONLY ONE function on the current scope. The imported function.
@@ -204,10 +221,29 @@ def removeConstants(code):
 	
 	return ret
 
-def update(article_name, summary=''):
+def push(article_name=None, summary=''):
 	"""
-	Takes a local version of an article and uploads it on the server (default www.pypedia.com)
+	If article_name is None, uploads all the articles that have been locally edited
+	if article_name is a string: Takes a local version of an article and uploads it on the server (default www.pypedia.com)
 	"""
+	
+	if not article_name:
+		#Get all local articles:
+		local_filenames = glob.glob(os.path.join(tmpDirectory, functionPreffix + "*.py"))
+		
+		for local_filename in local_filenames:
+			if local_filename.find("/pyp__.py") > -1: continue
+			if local_filename.find("/pyp__fake.py") > -1: continue
+			
+			if imported_file_time_diff(local_filename) > 1:
+				to_upload = os.path.split(local_filename)[1][len(functionPreffix):-3]
+				print "Local filename: %s has been edited locally." % (local_filename)
+				print "Uploading to article: %s" % (to_upload)
+				push(to_upload, summary)
+				change_local_retrieve_date(local_filename)
+				print "..........DONE"
+		return
+	
 	filename = os.path.join(tmpDirectory, functionPreffix + article_name + ".py")
 	#does this file exist?
 	if not os.path.exists(filename):
@@ -222,15 +258,13 @@ def update(article_name, summary=''):
 	#Remove the docstring. Doscstring is constructed automatically
 	c_from = content.find('Link: http://www.pypedia.com/index.php/%s' % (article_name))
 	c_to = content.find('"""', c_from)
-	content = content[0:c_from-4] + content[c_to+3:]
+	content = content[0:c_from-6] + content[c_to+3:]
 
 	#Form it as a wiki section
-	content = """
-==Code==
+	content = """==Code==
 
 <source lang="py">
-%s
-</source>
+%s</source>
 """ % (content)
 	
 	if not site:
@@ -295,7 +329,7 @@ def importCodeFromArticle(wikiTitle, wikiArticle, level, redirectedFrom, revisio
 	theCode = ""
 	theDocumentation = ""
 	theDocumentation += "Link: http://www.pypedia.com/index.php/%s\n" % (wikiTitle)
-	theDocumentation += "Local retrieve date: %s\n" % (time.strftime("%Y-%m-%dT%H:%M:%S%Z", time.localtime()))
+	theDocumentation += "Local retrieve date: @PYPEDIALOCALRETRIEVETIME@\n"
 	theDocumentation += "PyPedia touched date: %s\n" % (touched)
 	theDocumentation += "PyPedia revision: %s\n\n" % (revision)
 	listWA = wikiArticle.split("\n")
