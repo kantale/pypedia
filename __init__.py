@@ -56,6 +56,9 @@ tmpDirectory = "pypedia/pypCode/"
 #The preffix that every dowlnloaded file will have. 
 functionPreffix = "pyp_"
 
+#The file that contains the article prefilled text
+prefilled = "pypedia/prefilled.txt"
+
 #The username and password of the account in pypedia
 username = "pypediauser"
 password = "pypediauserpw"
@@ -272,6 +275,32 @@ def push(article_name=None, summary=''):
 
 	page = site.Pages[article_name]
 	page.save(content, summary=summary, section=5)
+
+def add(article_name):
+	"""
+	Creates a new article
+	"""
+
+	if not site:
+		pypedia_connect()
+		
+	page = site.Pages[article_name]
+	text = page.edit()
+	
+	#text should be empty
+	if text:
+		raise Exception("Article %s already exists" % (article_name))
+
+	prefilled_text = open(prefilled).read()
+	
+	#Make substitutions
+	text_to_save = prefilled_text.replace("@PYPEDIAUSERNAME@", username).replace("@PYPEDIAARTICLENAME@", article_name).replace("@PYPEDIAARTICLENAMENOUS@", article_name.replace("_", " "))
+
+	#Save the article to pypedia.com	
+	page.save(text_to_save)
+
+	#Download and import the article	
+	import_PYP_article(article_name, 1)
 
 def importFunctionsFromCode(code, thisFunctionName, level):
 	"""
