@@ -59,10 +59,6 @@ functionPreffix = "pyp_"
 #The file that contains the article prefilled text
 prefilled = "pypedia/prefilled.txt"
 
-#The username and password of the account in pypedia
-username = "pypediauser"
-password = "pypediauserpw"
-
 sys.path.append(tmpDirectory)
 
 #In case we only want to download code instead of importing it to the namespace, set the following to True
@@ -88,6 +84,15 @@ site = None
 #The before timestamp. If set then the library will download the first revision of the method BEFORE this date.
 #The format should be string: "YYYYMMDDHHMMSS"
 before_timestamp = None
+
+#Get username and password of the account in pypedia
+#If the file ~/.pyp exists then get the username from this file
+pyp_config = os.path.join(os.getenv("HOME"), ".pyp")
+if os.path.exists(pyp_config):
+	execfile(pyp_config)
+else:
+	username = "pypediauser"
+	password = "pypediauserpw"
 
 #Connect to mediawiki..
 def pypedia_connect():
