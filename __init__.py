@@ -146,7 +146,7 @@ def imported_file_time_diff(filename):
 	last_edited = time.localtime(os.path.getmtime(filename))
 
 	difference = datetime.fromtimestamp(time.mktime(last_edited)) - datetime.fromtimestamp(time.mktime(local_retrieve_time))
-	return difference.seconds
+	return (difference.seconds, local_retrieve_time, last_edited)
 
 def change_local_retrieve_date(filename):
 	"""
@@ -166,7 +166,7 @@ def importString(aName, astr, level, redirectedFrom = None):
 		if os.path.exists(tmpName):
 						
 			#Check if the file has been edited AFTER it was downloaded from pypedia.com (We allow one second interval)
-			difference = imported_file_time_diff(tmpName)
+			difference, local_retrieve_time, last_edited = imported_file_time_diff(tmpName)
 			if difference > 1:
 				if not force_imports:
 					raise Exception("%s cannot be imported because the file %s has been edited locally. Set pypedia.force_imports=True to override.\nLast edit time:%s\nRetrieve time:%s\n" % (aName, tmpName, str(last_edited), str(local_retrieve_time)))
@@ -243,7 +243,7 @@ def push(article_name=None, summary=''):
 			if local_filename.find("/pyp__.py") > -1: continue
 			if local_filename.find("/pyp__fake.py") > -1: continue
 			
-			if imported_file_time_diff(local_filename) > 1:
+			if imported_file_time_diff(local_filename)[0] > 1:
 				to_upload = os.path.split(local_filename)[1][len(functionPreffix):-3]
 				print "Local filename: %s has been edited locally." % (local_filename)
 				print "Uploading to article: %s" % (to_upload)
