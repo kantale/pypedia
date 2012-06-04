@@ -266,20 +266,25 @@ def push(article_name=None, summary=''):
 	#Remove the docstring. Doscstring is constructed automatically
 	c_from = content.find('Link: http://www.pypedia.com/index.php/%s' % (article_name))
 	c_to = content.find('"""', c_from)
-	content = content[0:c_from-6] + content[c_to+3:]
+	code = content[0:c_from-6] + content[c_to+3:]
+
+	docstring = content[c_from:c_to]
+	
+	#From docstring remove the first 5 lines
+	docstring = str.join('\n', docstring.split('\n')[5:])
 
 	#Form it as a wiki section
-	content = """==Code==
+	code = """==Code==
+<source lang="py">%s</source>""" % (code)
 
-<source lang="py">
-%s</source>
-""" % (content)
-	
 	if not site:
 		pypedia_connect()
 
 	page = site.Pages[article_name]
-	page.save(content, summary=summary, section=5)
+	#Save the code
+	page.save(code, summary=summary, section=5)
+	#Save the documentation
+	page.save(docstring, summary=summary, section=1)
 
 def add(article_name):
 	"""
@@ -358,82 +363,31 @@ def is_user_article(wikiTitle):
 
     return s[-2] == "user"
 
-#Imports the code and the documentation from a wiki article. TODO: It sucks..
+#Imports the code and the documentation from a wiki article. 
 def importCodeFromArticle(wikiTitle, wikiArticle, level, redirectedFrom, revision, touched):
-	theCode = ""
+
+	#Make documentation header
 	theDocumentation = ""
 	theDocumentation += "Link: http://www.pypedia.com/index.php/%s\n" % (wikiTitle)
 	theDocumentation += "Local retrieve date: @PYPEDIALOCALRETRIEVETIME@\n"
 	theDocumentation += "PyPedia touched date: %s\n" % (touched)
 	theDocumentation += "PyPedia revision: %s\n\n" % (revision)
-	listWA = wikiArticle.split("\n")
-	inCode = False
-	inSection = False
-	inDocumentation = False
-	documentation_added = False
-	after_declaration = False
-	after_parameters = False
-	in_xml_parameters = False
-	for line in listWA:
-		if line.find("==Documentation==") >= 0:
-			inDocumentation = True
-			continue
-		if line.find("==Code==") >= 0:
-			inSection = True
-			inDocumentation = False
-			continue
-		if line.find("===Parameters===") >= 0:
-			after_parameters = True
-			theDocumentation += line + "\n"
-			continue
-		if after_parameters:
-			if line.find("<source lang=\"xml\">") >= 0:
-				after_parameters = False
-				in_xml_parameters = True
-			continue
-		if inDocumentation:
-			if in_xml_parameters:
-				if line.find("</source>") >= 0:
-					in_xml_parameters = False
-					continue
-				else:
-					re_found = re.findall("[0-9a-zA-Z_]+[ \t]*=\"[ 0-9a-zA-Z_\'\:\(\)\.\,\/]*\"", line)
-					if len(re_found) == 4:
-						re_found_dict = {}
-						for value in [(y[0].strip(), y[1].strip()[1:-1]) for y in [x.split("=") for x in re_found]]:
-							re_found_dict[value[0]] = value[1]
-						param_line = "\t--" + re_found_dict["name"] + "\t" + re_found_dict["label"] + ". Type:" + re_found_dict["type"]
-						if len(re_found_dict["value"]) > 0:
-							param_line += ". Default value: " + re_found_dict["value"]
-						theDocumentation += param_line + "\n"
-						continue
 
-			if line.find("<inputs>") >= 0:
-				continue
-			if line.find("</inputs>") >= 0:
-				continue
+	#Add the documentation from the wiki
+	theDocumentation += re.search(r"(==Documentation==.+)==Code==", wikiArticle, re.DOTALL).group(1)
 
-			theDocumentation += line + "\n"
-			continue
-		if not inSection: continue
-		if line.find("""</source>""") >= 0 and not inDocumentation:
-			inCode = False
-			break
-		if inCode:
-			if line.replace(" ","").replace("\t","").strip()[-2:] == "):" and not documentation_added and not after_declaration:
-				theCode += line + "\n"
-				after_declaration = True
-				continue
-			if len(line.strip()) > 0 and after_declaration:
-				intent = line[0:line.find(line.strip()[0])]
-				theCode += intent + "\"\"\"\n" + theDocumentation + "\n" + intent + "\"\"\"\n"
-				theCode += line + "\n"
-				documentation_added = True
-				after_declaration = False
-				continue
-			theCode += line + "\n"
-		if line.find("""<source lang="py">""") >= 0 and not inDocumentation:
-			inCode = True
+	#Take the code
+	theCode = re.search(r"==Code==(.+)\n==Unit Tests==", wikiArticle, re.DOTALL).group(1)
+
+	#Remove the source tags from the code
+	theCode = theCode.replace('<source lang="py">\n', '').replace('</source>\n', '')
+
+	#Find the indentation
+	indentation = re.search(r"\)\s*:\s*\n+([ \t]+)\b", theCode).group(1)
+
+	#Insert the documentation
+	theCode = re.sub(r"\)\s*:\s*\n+([ \t]+)\b", "):\n" + \
+		indentation + '"""' + '\n' + theDocumentation + indentation + '"""' + '\n' + indentation, theCode, 1)
 	
 	#Import all functions within the article's code
 	importedFunctions = importFunctionsFromCode(theCode, [wikiTitle, redirectedFrom], level)
