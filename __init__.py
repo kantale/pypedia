@@ -266,8 +266,8 @@ def push(article_name=None, summary=''):
 	#Remove the docstring. Doscstring is constructed automatically
 	c_from = content.find('Link: http://www.pypedia.com/index.php/%s' % (article_name))
 	c_to = content.find('"""', c_from)
-	code = content[0:c_from-6] + content[c_to+3:]
-
+#	code = content[0:c_from-6] + content[c_to+3:]
+	code = content[1:c_from-6] + content[c_to+3:-1]
 	docstring = content[c_from:c_to]
 	
 	#From docstring remove the first 5 lines
@@ -280,11 +280,15 @@ def push(article_name=None, summary=''):
 	if not site:
 		pypedia_connect()
 
+	#Get article object
 	page = site.Pages[article_name]
 	#Save the code
 	page.save(code, summary=summary, section=5)
 	#Save the documentation
 	page.save(docstring, summary=summary, section=1)
+	
+	#Update the local retriece date
+	change_local_retrieve_date(os.path.join(tmpDirectory, functionPreffix + article_name + ".py"))
 
 def add(article_name):
 	"""
@@ -376,11 +380,15 @@ def importCodeFromArticle(wikiTitle, wikiArticle, level, redirectedFrom, revisio
 	#Add the documentation from the wiki
 	theDocumentation += re.search(r"(==Documentation==.+)==Code==", wikiArticle, re.DOTALL).group(1)
 
+	#Remove from the documentation the Simple Forms part
+	to_remove = re.search(r"\<\!-- DO NOT EDIT HERE! AUTOMATICALLY GENERATED --\>.+\<\!-- EDIT HERE\! --\>", theDocumentation, re.DOTALL)
+	theDocumentation = theDocumentation.replace(to_remove.group(0), '')
+
 	#Take the code
 	theCode = re.search(r"==Code==(.+)\n==Unit Tests==", wikiArticle, re.DOTALL).group(1)
 
 	#Remove the source tags from the code
-	theCode = theCode.replace('<source lang="py">\n', '').replace('</source>\n', '')
+	theCode = theCode.replace('<source lang="py">', '').replace('</source>', '')
 
 	#Find the indentation
 	indentation = re.search(r"\)\s*:\s*\n+([ \t]+)\b", theCode).group(1)
