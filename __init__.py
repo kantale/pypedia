@@ -390,12 +390,8 @@ def importCodeFromArticle(wikiTitle, wikiArticle, level, redirectedFrom, revisio
 	#Remove the source tags from the code
 	theCode = theCode.replace('<source lang="py">', '').replace('</source>', '')
 
-	#Find the indentation
-	indentation = re.search(r"\)\s*:\s*\n+([ \t]+)\b", theCode).group(1)
-
 	#Insert the documentation
-	theCode = re.sub(r"\)\s*:\s*\n+([ \t]+)\b", "):\n" + \
-		indentation + '"""' + '\n' + theDocumentation + indentation + '"""' + '\n' + indentation, theCode, 1)
+	theCode = re.sub(r'\)\s*:\s*\n+([ \t]+)(\S)', r'):\n\1"""\n' + theDocumentation + r'\1"""\n\1\2', theCode, 1)
 	
 	#Import all functions within the article's code
 	importedFunctions = importFunctionsFromCode(theCode, [wikiTitle, redirectedFrom], level)
