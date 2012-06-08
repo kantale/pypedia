@@ -476,16 +476,17 @@ def import_hook(name, globals=None, locals=None, fromlist=None, level=None):
 		for toImport in fromlist:
 			#Import this article
 			import_PYP_article(toImport, 1)
+			
+	return original_import(name, globals, locals, fromlist)
 
-
-	parent = determine_parent(globals)
-	q, tail = find_head_package(parent, name)
-	m = load_tail(q, tail)
-	if not fromlist:
-		return q
-	if hasattr(m, "__path__"):
-		ensure_fromlist(m, fromlist)
-	return m
+#	parent = determine_parent(globals)
+#	q, tail = find_head_package(parent, name)
+#	m = load_tail(q, tail)
+#	if not fromlist:
+#		return q
+#	if hasattr(m, "__path__"):
+#		ensure_fromlist(m, fromlist)
+#	return m
 
 def determine_parent(globals):
     if not globals or  not globals.has_key("__name__"):
@@ -584,9 +585,9 @@ def reload_hook(module):
 
 # Save the original hooks
 original_import = __builtin__.__import__
-original_reload = __builtin__.reload
+#original_reload = __builtin__.reload
 
 # Now install our hooks
 __builtin__.__import__ = import_hook
-__builtin__.reload = reload_hook
+#__builtin__.reload = reload_hook
 
