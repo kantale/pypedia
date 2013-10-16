@@ -22,6 +22,7 @@ import mwclient
 import inspect
 import glob
 import time
+import ast
 import re
 import os
 
@@ -66,7 +67,7 @@ sys.path.append(tmpDirectory)
 importDumpFunction = False
 
 #Set true to download a new version only if there isn't one already downladed
-enable_cache = False
+enable_cache = True
 
 #For debug information
 debug = False
@@ -84,6 +85,10 @@ site = None
 #The before timestamp. If set then the library will download the first revision of the method BEFORE this date.
 #The format should be string: "YYYYMMDDHHMMSS"
 before_timestamp = None
+
+#This is a list of keywords that have been queried to the wiki but does not exist
+#By checking this list before querying the wiki we improve import time
+non_existent_keywords = []
 
 #Get username and password of the account in pypedia
 #If the file ~/.pyp exists then get the username from this file
@@ -291,9 +296,9 @@ def push(article_name=None, summary=''):
 	change_local_retrieve_date(os.path.join(tmpDirectory, functionPreffix + article_name + ".py"))
 
 def add(article_name):
-	"""
+	'''
 	Creates a new article
-	"""
+	'''
 
 	if not site:
 		pypedia_connect()
@@ -316,46 +321,70 @@ def add(article_name):
 	#Download and import the article	
 	import_PYP_article(article_name, 1)
 
+def traverse_nodes(node, level, to_ret):
+	'''
+	Traverse recursively all nodes staring from node.
+	Node is a ast compiled object
+	If the node is referred to a function called then stored the function name in the to_ret list
+	'''
+
+	#Is this a function call?
+	if node.__class__.__name__ == 'Call':
+		#Take the first child
+		first_child = ast.iter_child_nodes(node).next()
+
+		#Is this a Name node?
+		if first_child.__class__.__name__ == 'Name':
+			to_ret += [first_child.id]
+	
+	#Continue recusively for all childs
+	for child in ast.iter_child_nodes(node):
+		traverse_nodes(child, level+1, to_ret)
+
+
 def importFunctionsFromCode(code, thisFunctionName, level):
-	"""
+	'''
 	Try to import the functions that are included in thisFunctionName
-	"""
+	'''
 
 	#Remove Comments
-	thisCode = removeComments(code)
+	#thisCode = removeComments(code)
 
 	#Remove Constants
-	thisCode = removeConstants(thisCode)
+	#thisCode = removeConstants(thisCode)
 
-	#find all functions that are in code. This is the regular expression to recognize function calls
+	#find all functions that are in code. 
 	ret = []
 
-	allFunctions = re.findall('(?<![\.a-zA-Z0-9])[a-zA-Z][a-zA-Z0-9\_]*[ \t]*\(', thisCode)
+	#This is the regular expression to recognize function calls
+	#allFunctions = re.findall('(?<![\.a-zA-Z0-9])[a-zA-Z][a-zA-Z0-9\_]*[ \t]*\(', thisCode)
 	#allFunctions = re.findall('pyp_[a-zA-Z0-9\_]*[ \t]*\(', thisCode)
-	for aFunction in allFunctions:
-		#Removing "("
-		aFunction = aFunction[0:-1]
-		aFunction = aFunction.strip()
 
-		if aFunction in thisFunctionName:
+	code_ast = ast.parse(code)
+	function_calls = []
+	traverse_nodes(code_ast, 1, function_calls)
+
+	for function_call in function_calls:
+
+		if function_call in thisFunctionName:
 			continue
 
-		if aFunction in reservedWords:
+		if function_call in reservedWords:
 			continue
 
 		included = True
 		try:
-			a = eval("type(%s).__name__" % aFunction)
+			a = eval("type(%s).__name__" % function_call)
 		except NameError:
 			included = False
 		
 		#TODO. FIX. REMOVE THIS
 		included = False
 
-		if (not included) and (aFunction not in ret):
+		if (not included) and (function_call not in ret):
 			#This Function is not included. Try to include it from wiki
-			if import_PYP_article(aFunction, level+1):
-				ret += [aFunction]
+			if import_PYP_article(function_call, level+1):
+				ret += [function_call]
 	
 	return ret
 
@@ -367,8 +396,10 @@ def is_user_article(wikiTitle):
 
     return s[-2] == "user"
 
-#Imports the code and the documentation from a wiki article. 
 def importCodeFromArticle(wikiTitle, wikiArticle, level, redirectedFrom, revision, touched):
+	'''
+	Imports the code and the documentation from a wiki article.
+	'''
 
 	#Make documentation header
 	theDocumentation = ""
@@ -416,6 +447,12 @@ def importCodeFromArticle(wikiTitle, wikiArticle, level, redirectedFrom, revisio
 #Called from import hook
 def import_PYP_article(wikiTitle, level, redirectedFrom = None):
 
+	global non_existent_keywords
+
+	#Have we queried the wiki before for this title?
+	if wikiTitle in non_existent_keywords:
+		return False
+
 	print_debug("Importing: " + wikiTitle + " level:" + str(level))
 
 	#Check if this is a User_ article
@@ -444,7 +481,8 @@ def import_PYP_article(wikiTitle, level, redirectedFrom = None):
 	touched = time.strftime("%Y-%m-%dT%H:%M:%SZ", page.touched) if type(page.touched).__name__ == "struct_time" else None
 
 	if not len(text):
-		print_debug(wikiTitle + " does not exist in www.pypedia.com")
+		print_debug('     ' + wikiTitle + ' does not exist in www.pypedia.com')
+		non_existent_keywords += [wikiTitle]
 		return False
 
 	#Is it a redirect page?
