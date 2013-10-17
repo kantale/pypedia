@@ -151,7 +151,7 @@ def imported_file_time_diff(filename):
 	last_edited = time.localtime(os.path.getmtime(filename))
 
 	difference = datetime.fromtimestamp(time.mktime(last_edited)) - datetime.fromtimestamp(time.mktime(local_retrieve_time))
-	return (difference.seconds, local_retrieve_time, last_edited)
+	return (difference.total_seconds(), local_retrieve_time, last_edited)
 
 def change_local_retrieve_date(filename):
 	"""
