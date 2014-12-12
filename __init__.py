@@ -504,7 +504,7 @@ def import_PYP_article(wikiTitle, level, redirectedFrom = None):
 # Replacement for __import__()
 
 #TODO: Replace import_hook function with suitable for Python 2.6
-#argument "level" is not used at all!!!!
+#NOTE: Done by checking level argument
 def import_hook(name, globals=None, locals=None, fromlist=None, level=None):
 
 	if name == "pypedia":
@@ -514,8 +514,11 @@ def import_hook(name, globals=None, locals=None, fromlist=None, level=None):
 		for toImport in fromlist:
 			#Import this article
 			import_PYP_article(toImport, 1)
-			
-	return original_import(name, globals, locals, fromlist)
+	
+	if level is None:
+		return original_import(name, globals, locals, fromlist)
+	else:
+		return original_import(name, globals, locals, fromlist, level)
 
 #	parent = determine_parent(globals)
 #	q, tail = find_head_package(parent, name)
