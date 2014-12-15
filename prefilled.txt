@@ -11,9 +11,9 @@ Documentation for '''@PYPEDIAARTICLENAMENOUS@'''
 <p>
 {{#input:type=hidden|name=article_title|value=@PYPEDIAARTICLENAME@}}
 {{#input:type=hidden|name=pyp_username|value={{CURRENTUSER}}}}
+{{#input:type=ajax|value=Run|id=eob}}
 {{#input:type=ajax|value=Download code|id=dc}}
 {{#input:type=ajax|value=Execute on remote computer|id=eorc}}
-{{#input:type=ajax|value=Execute on browser|id=eob}}
 {{#formend:}}
 
 <!-- EDIT HERE! -->
