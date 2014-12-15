@@ -41,14 +41,10 @@ if sys.version[0:4] == "2.7 ":
 
 #Change siteDomain to the domain of your local installation of mediawiki
 #For example:
-#siteDomain = 192.168.0.4
 siteDomain = "www.pypedia.com"
 
 #Change sitePath to the path of your MediaWiki installation. For example if the mediawiki can
 #be accessed through: http://192.168.0.4/PYP/index.php then sitePath should be:
-#sitePath = "/PYP/"
-#sitePath = "/~alexandroskanterakis/pypedia/"
-#sitePath = "/~alexandroskanterakis/MyWiki/"
 sitePath = "/"
 
 #The temporary directory to store the downloaded code
@@ -300,6 +296,8 @@ def add(article_name):
 	Creates a new article
 	'''
 
+	global tmpDirectory, functionPreffix
+
 	if not site:
 		pypedia_connect()
 		
@@ -310,15 +308,22 @@ def add(article_name):
 	if text:
 		raise Exception("Article %s already exists" % (article_name))
 
-	prefilled_text = open(prefilled).read()
+	with open(prefilled) as prefilled_f:
+		prefilled_text = prefilled_f.read()
 	
 	#Make substitutions
 	text_to_save = prefilled_text.replace("@PYPEDIAUSERNAME@", username).replace("@PYPEDIAARTICLENAME@", article_name).replace("@PYPEDIAARTICLENAMENOUS@", article_name.replace("_", " "))
 
 	#Save the article to pypedia.com	
 	page.save(text_to_save)
+	print 'Article %s saved' % (article_name)
+	print 'Next: '
+	print '  Edit the article online: http://www.pypedia.com/index.php/%s' % (article_name)
+	print '  Or edit the article locally: %s' % os.path.join((os.path.dirname(os.path.dirname(os.path.realpath(__file__)))), tmpDirectory, functionPreffix + article_name + '.py' )
+	print '    To push the changes to pypedia.com run: pypedia.push()'
 
-	#Download and import the article	
+
+	#Download and import the article
 	import_PYP_article(article_name, 1)
 
 def traverse_nodes(node, level, to_ret):
