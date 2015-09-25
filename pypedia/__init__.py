@@ -1,5 +1,5 @@
 """
- Copyright (C) 2009-2012 Alexandros Kanterakis
+ Copyright (C) 2009-2015 Alexandros Kanterakis
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 """
 
 import sys, imp, __builtin__
-import mwclient
+import pypmwclient
 import inspect
 import glob
 import time
@@ -106,7 +106,7 @@ def pypedia_connect():
 	global site
 
 	print_debug("Connecting to www.pypedia.com..")
-	site = mwclient.Site(siteDomain, path = sitePath)
+	site = pypmwclient.Site(siteDomain, path = sitePath)
 	site.login(username, password) # Optional
 	print_debug("Done connecting to www.pypedia.com")
 
