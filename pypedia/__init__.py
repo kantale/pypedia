@@ -18,7 +18,7 @@
 """
 
 import sys, imp, __builtin__
-import pypmwclient
+import mwclient
 import inspect
 import glob
 import time
@@ -48,13 +48,19 @@ siteDomain = "www.pypedia.com"
 sitePath = "/"
 
 #The temporary directory to store the downloaded code
-tmpDirectory = "pypedia/pypCode/"
+#tmpDirectory = "pypedia/pypCode/"
+tmpDirectory = os.path.join(os.path.expanduser('~'), '.pypedia')
+try:
+	os.mkdir(tmpDirectory)
+except OSError:
+	pass # Directory already exists
 
 #The preffix that every dowlnloaded file will have. 
 functionPreffix = "pyp_"
 
 #The file that contains the article prefilled text
-prefilled = "pypedia/prefilled.txt"
+#prefilled = "pypedia/prefilled.txt"
+from prefilled import prefilled_text
 
 sys.path.append(tmpDirectory)
 
@@ -100,7 +106,7 @@ def pypedia_connect():
 	global site
 
 	print_debug("Connecting to www.pypedia.com..")
-	site = pypmwclient.Site(siteDomain, path = sitePath)
+	site = mwclient.Site(siteDomain, path = sitePath)
 	site.login(username, password) # Optional
 	print_debug("Done connecting to www.pypedia.com")
 
@@ -159,7 +165,8 @@ def change_local_retrieve_date(filename):
 
 def importString(aName, astr, level, redirectedFrom = None):
 
-	tmpName = "%s%s%s.py" % (tmpDirectory, functionPreffix, aName)
+	#tmpName = "%s%s%s.py" % (tmpDirectory, functionPreffix, aName)
+	tmpName = os.path.join(tmpDirectory, functionPreffix + aName + ".py")
 
 	if (not enable_cache) or (not os.path.isfile(tmpName)):
 	
@@ -180,8 +187,10 @@ def importString(aName, astr, level, redirectedFrom = None):
 	#Check documentation if you want to import the whole function tree
 	if level == 1:
 
-		rootFilename = "%s%s_.py" % (tmpDirectory, functionPreffix)
-		fakeFilename = "%s%s_fake.py" % (tmpDirectory, functionPreffix)
+		#rootFilename = "%s%s_.py" % (tmpDirectory, functionPreffix)
+		rootFilename = os.path.join(tmpDirectory, functionPreffix + '_.py')
+		#fakeFilename = "%s%s_fake.py" % (tmpDirectory, functionPreffix)
+		fakeFilename = os.path.join(tmpDirectory, functionPreffix + '_fake.py')
 
 		f = open(rootFilename, "w")
 		f_fake = open(fakeFilename, "w")
@@ -308,8 +317,8 @@ def add(article_name):
 	if text:
 		raise Exception("Article %s already exists" % (article_name))
 
-	with open(prefilled) as prefilled_f:
-		prefilled_text = prefilled_f.read()
+#	with open(prefilled) as prefilled_f:
+#		prefilled_text = prefilled_f.read()
 	
 	#Make substitutions
 	text_to_save = prefilled_text.replace("@PYPEDIAUSERNAME@", username).replace("@PYPEDIAARTICLENAME@", article_name).replace("@PYPEDIAARTICLENAMENOUS@", article_name.replace("_", " "))
@@ -437,7 +446,8 @@ def importCodeFromArticle(wikiTitle, wikiArticle, level, redirectedFrom, revisio
 		#theCode += "\n" + redirectedFrom + " = " + wikiTitle + "\n"
 
 		#Create redirection python file
-		tmpFile = open("%s%s%s.py" %(tmpDirectory, functionPreffix, redirectedFrom) , "w")
+		#tmpFile = open("%s%s%s.py" %(tmpDirectory, functionPreffix, redirectedFrom) , "w")
+		tmpFile = open(os.path.join(tmpDirectory, functionPreffix + ".py"), "w")
 		tmpFile.write("from %s%s import *\n" % (functionPreffix, wikiTitle) )
 		tmpFile.write(redirectedFrom + " = " + wikiTitle + "\n")
 		tmpFile.close()
@@ -467,7 +477,8 @@ def import_PYP_article(wikiTitle, level, redirectedFrom = None):
 	#Is cache enabled?
 	if enable_cache:
 		#Does the file exist?
-		code_filename = "%s%s%s.py" % (tmpDirectory, functionPreffix, wikiTitle)
+		#code_filename = "%s%s%s.py" % (tmpDirectory, functionPreffix, wikiTitle)
+		code_filename = os.path.join(tmpDirectory, functionPreffix + ".py")
 		if os.path.exists(code_filename) and not redirectedFrom:
 			print_debug(wikiTitle + " exists in the cache")
 			importString(wikiTitle, None, level, redirectedFrom)
