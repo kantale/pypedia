@@ -165,6 +165,8 @@ def change_local_retrieve_date(filename):
 
 def importString(aName, astr, level, redirectedFrom = None):
 
+	#print "Importing: name: %s, level: %i, Refirected from: %s" % (aName, level, str(redirectedFrom))
+
 	#tmpName = "%s%s%s.py" % (tmpDirectory, functionPreffix, aName)
 	tmpName = os.path.join(tmpDirectory, functionPreffix + aName + ".py")
 
@@ -447,7 +449,7 @@ def importCodeFromArticle(wikiTitle, wikiArticle, level, redirectedFrom, revisio
 
 		#Create redirection python file
 		#tmpFile = open("%s%s%s.py" %(tmpDirectory, functionPreffix, redirectedFrom) , "w")
-		tmpFile = open(os.path.join(tmpDirectory, functionPreffix + ".py"), "w")
+		tmpFile = open(os.path.join(tmpDirectory, functionPreffix + redirectedFrom + ".py"), "w")
 		tmpFile.write("from %s%s import *\n" % (functionPreffix, wikiTitle) )
 		tmpFile.write(redirectedFrom + " = " + wikiTitle + "\n")
 		tmpFile.close()
